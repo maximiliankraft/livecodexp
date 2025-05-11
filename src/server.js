@@ -3,6 +3,7 @@ import bodyParser from 'body-parser';
 import { router as syncRouter } from './routes/syncRoutes.js';
 import EventManager from './routes/syncRoutes.js';
 import path from 'path';
+import { log } from 'console';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,12 +21,12 @@ app.get('/events', (req, res) => {
     res.setHeader('Connection', 'keep-alive');
 
     eventManager.addClient(res);
+    
 
     req.on('close', () => {
         eventManager.removeClient(res);
     });
 });
-
 
 app.use(express.static(path.join(__dirname, 'src/public')))
 

@@ -17,8 +17,15 @@ export default class EventManager {
         if (this.currentState) {
             console.log("Sending current state to new client");
             
-            res.write(`${JSON.stringify(this.currentState)}\n\n`);
-        }else{
+            // Format data correctly for SSE
+            res.write(`data: ${JSON.stringify(this.currentState)}\n\n`);
+            
+            // If we have accumulated updates, send them too
+            if (this.currentState.updates && this.currentState.updates.length > 0) {
+                console.log(`Sending ${this.currentState.updates.length} accumulated updates to new client`);
+                // We don't send these updates individually since they've already been applied to the initial state
+            }
+        } else {
             console.log("No current state to send to new client");
         }
     }
@@ -47,9 +54,24 @@ router.post('/initial', async (req, res) => {
 
 router.post('/update', async (req, res) => {
     const updates = req.body.updates;
-    console.log(updates);
+    console.log("Received updates:", updates);
 
+    // Send the updates to all connected clients
     eventManager.sendUpdate({ type: 'update', updates });
+    
+    // Store updates in the current state for new clients
+    if (!eventManager.currentState) {
+        eventManager.currentState = { type: 'initial', content: {} };
+    }
+    
+    // Ensure we have an updates array in the current state
+    if (!eventManager.currentState.updates) {
+        eventManager.currentState.updates = [];
+    }
+    
+    // Store these updates for future clients
+    eventManager.currentState.updates.push(...updates);
+    
     res.status(200).send('Updates published');
 });
 

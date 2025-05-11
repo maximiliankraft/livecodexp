@@ -140,18 +140,92 @@ class FileSystemObserverManager {
         const updates = [];
         for (const record of records) {
 
-            const filePath = record.relativePathComponents.join("/");
+            const filePathStr = record.relativePathComponents.join("/");
 
             if (
-                    filePath.endsWith(".crswap") || 
-                    filePath.endsWith("~") || 
-                    await isIgnoredByGitignore(this.dataManager.gitignoreFile, this.dataManager.gitignoreDir, filePath)
+                filePathStr.endsWith(".crswap") || 
+                filePathStr.endsWith("~") || 
+                    await isIgnoredByGitignore(this.dataManager.gitignoreFile, this.dataManager.gitignoreDir, filePathStr)
                 ) {
                 continue;
             }
             console.log(record);
             
-                updates.push(record);
+                // Format the update in the required structure
+                const filePathArr = record.relativePathComponents;
+                if (filePathArr.length > 0) {
+                    // Get the filename from the last part of the path
+                    const filename = filePathArr[filePathArr.length - 1];
+                    // Get the full path excluding the filename
+                    const subfolderPath = filePathArr.slice(0, -1);
+                    
+                    // Handle different folder depth cases
+                    let updateObj = {};
+                    
+                    if (subfolderPath.length === 0) {
+                        // File is in the root directory
+                        // For files that are not deleted, we need to get content
+                        if (record.type !== "deleted" && record.target && record.target.kind === "file") {
+                            // Try to get file content for the update
+                            try {
+                                // Async won't work in this context, so we just set type and get content later if needed
+                                updateObj[filename] = { 
+                                    kind: "file", 
+                                    type: record.type
+                                };
+                            } catch (e) {
+                                console.error("Error getting file content:", e);
+                                updateObj[filename] = { 
+                                    kind: "file", 
+                                    type: record.type
+                                };
+                            }
+                        } else {
+                            updateObj[filename] = { 
+                                kind: "file", 
+                                type: record.type
+                            };
+                        }
+                    } else {
+                        // File is in a subfolder - build nested structure
+                        let currentLevel = updateObj;
+                        subfolderPath.forEach((folder, index) => {
+                            if (index === subfolderPath.length - 1) {
+                                // Last folder level - add the file here
+                                let fileData = { 
+                                    kind: "file", 
+                                    type: record.type
+                                };
+                                
+                                // For files that are not deleted, try to get content
+                                if (record.type !== "deleted" && record.target && record.target.kind === "file") {
+                                    // Async won't work here, just set type
+                                    fileData = { 
+                                        kind: "file", 
+                                        type: record.type
+                                    };
+                                }
+                                
+                                currentLevel[folder] = {
+                                    kind: "directory",
+                                    children: {
+                                        [filename]: fileData
+                                    }
+                                };
+                            } else {
+                                // Intermediate folder level
+                                currentLevel[folder] = {
+                                    kind: "directory",
+                                    children: {}
+                                };
+                                currentLevel = currentLevel[folder].children;
+                            }
+                        });
+                    }
+                    
+                    updates.push(updateObj);
+                }
+                
                 this.logger.addLogMessage(
                     ` ${record.relativePathComponents.join("/")} ${
                         ["modified", "deleted", "created", "disappeared"].includes(record.type) ? "was " : ""

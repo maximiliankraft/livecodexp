@@ -6,9 +6,9 @@ class SSEClient {
         console.log("Connecting to SSE server at", eventSourceUrl);
         
         this.renderer = renderer;
+        this.currentContent = {}; // Store current content state
 
         this.eventSource.onmessage = (event) => {
-
             const data = JSON.parse(event.data);
             console.log(data);
             
@@ -23,11 +23,46 @@ class SSEClient {
     handleEvent(data) {
         if (data.type === "initial") {
             console.debug("Received initial content via SSE");
-            this.renderer.renderDirectoryContent(data.content);
+            this.currentContent = data.content; // Store initial state
+            this.renderer.renderDirectoryContent(this.currentContent);
         } else if (data.type === "update") {
             console.debug("Received updates via SSE");
-            // Handle updates if necessary (e.g., merge updates into the current content)
-            this.renderer.renderDirectoryContent(data.updates);
+            
+            // Apply each update to the current content state
+            data.updates.forEach(update => {
+                this.mergeUpdate(update);
+            });
+            
+            // Re-render with the updated content
+            this.renderer.renderDirectoryContent(this.currentContent);
+        }
+    }
+    
+    // Recursively merge updates into the current content
+    mergeUpdate(update, target = this.currentContent) {
+        for (const [key, value] of Object.entries(update)) {
+            if (value.kind === "file") {
+                // Direct file update
+                target[key] = value;
+            } else if (value.kind === "directory") {
+                // Handle directory updates (nested structure)
+                if (!target[key]) {
+                    // New directory
+                    target[key] = {
+                        kind: "directory",
+                        children: {}
+                    };
+                } else if (!target[key].children) {
+                    // Ensure existing directory has children object
+                    target[key].children = {};
+                }
+                
+                // Recursive update for nested children
+                if (value.children) {
+                    // Pass the correct target object for recursive merging
+                    this.mergeUpdate(value.children, target[key].children);
+                }
+            }
         }
     }
 }
@@ -42,27 +77,3 @@ class SSEClient {
         alert("Directory selection is now handled by the server. Updates will appear automatically.");
     };
 })();
-
-/*(async () => {
-    const logger = new Logger("observer");
-    const dataManager = new DirectoryDataManager();
-    const renderer = new DirectoryRenderer("contents", "#fileContent");
-    const synchronizer = new DirectorySynchronizer();
-
-    const observerManager = new FileSystemObserverManager(logger, dataManager, (updates, content) => {
-        // Handle updates: render or send to API
-        
-        if (updates.length === 0) {
-            renderer.renderDirectoryContent(content); // Initial load
-            synchronizer.publishUpdate(updates); // Send updates to API
-        } else {
-            synchronizer.publishInitial(content); // Send updates to API
-            renderer.renderDirectoryContent(content); // Update UI (can be optimized further)
-        }
-    });
-
-    document.querySelector("#selectDirButton").onclick = async () => {
-        const rootHandle = await window.showDirectoryPicker({ mode: "read" });
-        await observerManager.startObserver(rootHandle);
-    };
-})();*/
