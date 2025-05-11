@@ -9,6 +9,24 @@ import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import sessionManager from './services/sessionManager.js';
 
+import appInsights from 'applicationinsights';
+
+
+if (process.env.APPINSIGHTS_INSTRUMENTATIONKEY) {
+  appInsights.setup( process.env.APPINSIGHTS_INSTRUMENTATIONKEY)
+    .setAutoCollectRequests(true)
+    .setAutoCollectPerformance(true, true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectDependencies(true)
+    .setAutoCollectConsole(true, false)
+    .setAutoCollectPreAggregatedMetrics(true)
+    .setSendLiveMetrics(false)
+    .setInternalLogging(false, true)
+    .enableWebInstrumentation(false)
+    .start();
+}
+
+
 // Create dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
