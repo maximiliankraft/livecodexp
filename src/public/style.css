@@ -1,0 +1,42 @@
+body {
+    display: flex;
+    height: 100vh;
+    margin: 0;
+    font-family: Tahoma, sans-serif;
+  }
+
+  #sidebar-left {
+    width: 20%;
+    overflow-y: auto;
+  }
+
+  #main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #main-window {
+    flex-grow: 1;
+    overflow-y: auto;
+  }
+
+  #sidebar-right {
+    width: 20%;
+    overflow-y: auto;
+  }
+
+  pre {
+    background-color: #ece9d8;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+  }
+
+  .file {
+    cursor: pointer;
+  }
+
+  .title-bar-text{
+    font-family: Arial, Helvetica, sans-serif !important;
+  }

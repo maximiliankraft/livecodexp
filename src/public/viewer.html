@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      if (!isSecureContext) location.protocol = "https:";
+    </script>
+    <link rel="stylesheet" href="https://unpkg.com/xp.css" />
+    <script src="viewer.js" type="module"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script>
+      hljs.highlightAll();
+    </script>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📁</text></svg>" />
+    <title>File Watcher for Live Code 🧑‍💻</title>
+    <style>
+      body {
+        display: flex;
+        height: 100vh;
+        margin: 0;
+        font-family: Tahoma, sans-serif;
+      }
+
+      #sidebar-left {
+        width: 20%;
+        overflow-y: auto;
+      }
+
+      #main {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      #main-window {
+        flex-grow: 1;
+        overflow-y: auto;
+      }
+
+      #sidebar-right {
+        width: 20%;
+        overflow-y: auto;
+      }
+
+      pre {
+        background-color: #ece9d8;
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+
+      .file {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar-left" class="window">
+      <div class="title-bar">
+        <div class="title-bar-text">📂 Directory Structure</div>
+        <div class="title-bar-controls">
+          <button aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body">
+        <button id="selectDirButton">Select directory</button>
+        <div id="contents"></div>
+      </div>
+    </div>
+
+    <div id="main-window" class="window">
+      <div class="title-bar">
+        <div class="title-bar-text">📄 File Viewer</div>
+        <div class="title-bar-controls">
+          <button aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body">
+        <pre>
+          <code id="fileContent"></code>
+        </pre>
+      </div>
+    </div>
+
+    <div id="sidebar-right" class="window">
+      <div class="title-bar">
+        <div class="title-bar-text">👀 File System Observer Log</div>
+        <div class="title-bar-controls">
+          <button aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="window-body">
+        <div id="observer"></div>
+      </div>
+    </div>
+  </body>
+</html>
