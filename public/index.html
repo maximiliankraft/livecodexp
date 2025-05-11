@@ -90,6 +90,11 @@
             justify-content: flex-end;
             margin-top: 15px;
         }
+
+        .button-row button {
+            margin-left: 10px;
+        }
+
         .session-list {
             border: 1px inset #fff;
             background-color: white;
@@ -163,49 +168,51 @@
                     <button aria-label="Close"></button>
                 </div>
             </div>
-            <div class="tab-strip">
-                <div class="tab active" data-tab="create-session">Create Session</div>
-                <div class="tab" data-tab="join-session">Join Session</div>
-            </div>
+  
             <div class="window-body">
-                <!-- Create Session Tab -->
-                <div class="tab-content active" id="create-session">
-                    <form id="create-session-form">
-                        <div class="form-row">
-                            <label for="session-name">Session Name:</label>
-                            <input type="text" id="session-name" required>
+                <section class="tabs" style="max-width: 600px">
+                    <menu role="tablist" aria-label="Session Tabs">
+                        <button role="tab" aria-selected="true" aria-controls="create-session-tab">Create Session</button>
+                        <button role="tab" aria-controls="join-session-tab">Join Session</button>
+                    </menu>
+                    <!-- Create Session Tab -->
+                    <article role="tabpanel" id="create-session-tab">
+                        <form id="create-session-form">
+                            <div class="form-row">
+                                <label for="session-name">Session Name:</label>
+                                <input type="text" id="session-name" required>
+                            </div>
+                            <div class="form-row info-row">
+                                <small>
+                                    Create a new session as a teacher/presenter.
+                                    <br>Session limits: Max 500 files, 5MB per file, 50MB total.
+                                </small>
+                            </div>
+                            <div class="button-row">
+                                <button type="submit">Create Session</button>
+                            </div>
+                        </form>
+                    </article>
+                    <!-- Join Session Tab -->
+                    <article role="tabpanel" hidden id="join-session-tab">
+                        <div>
+                            <div class="form-row">
+                                <label>Available Sessions:</label>
+                            </div>
+                            <div class="session-list" id="session-list">
+                                <div class="session-item" data-id="loading">Loading sessions...</div>
+                            </div>
+                            <div class="form-row">
+                                <label for="session-id">Session ID:</label>
+                                <input type="text" id="session-id" required>
+                            </div>
+                            <div class="button-row">
+                                <button type="button" id="refresh-btn">Refresh</button>
+                                <button type="button" id="join-btn">Join Session</button>
+                            </div>
                         </div>
-                        <div class="form-row info-row">
-                            <small>
-                                Create a new session as a teacher/presenter.
-                                <br>Session limits: Max 500 files, 5MB per file, 50MB total.
-                            </small>
-                        </div>
-                        <div class="button-row">
-                            <button type="submit">Create Session</button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Join Session Tab -->
-                <div class="tab-content" id="join-session">
-                    <div>
-                        <div class="form-row">
-                            <label>Available Sessions:</label>
-                        </div>
-                        <div class="session-list" id="session-list">
-                            <div class="session-item" data-id="loading">Loading sessions...</div>
-                        </div>
-                        <div class="form-row">
-                            <label for="session-id">Session ID:</label>
-                            <input type="text" id="session-id" required>
-                        </div>
-                        <div class="button-row">
-                            <button type="button" id="refresh-btn">Refresh</button>
-                            <button type="button" id="join-btn">Join Session</button>
-                        </div>
-                    </div>
-                </div>
+                    </article>
+                </section>
             </div>
             <div class="status-bar">
                 <div id="status-message">Ready</div>
@@ -229,20 +236,20 @@
 
     <script>
         // Tab switching logic
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                // Remove active class from all tabs and content
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                // Add active class to clicked tab
-                tab.classList.add('active');
-                
-                // Show corresponding content
-                const tabId = tab.getAttribute('data-tab');
-                document.getElementById(tabId).classList.add('active');
-            });
+        document.querySelectorAll('[role="tab"]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active state from all tabs and panels
+            document.querySelectorAll('[role="tab"]').forEach(t => t.setAttribute('aria-selected', 'false'));
+            document.querySelectorAll('[role="tabpanel"]').forEach(panel => panel.hidden = true);
+
+            // Set active state for the clicked tab
+            tab.setAttribute('aria-selected', 'true');
+
+            // Show the corresponding tab panel
+            const tabPanelId = tab.getAttribute('aria-controls');
+            document.getElementById(tabPanelId).hidden = false;
         });
+    });
 
         // Session management
         let selectedSessionId = null;
