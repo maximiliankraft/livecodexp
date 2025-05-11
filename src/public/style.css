@@ -36,3 +36,11 @@ body {
   .file {
     cursor: pointer;
   }
+  
+  .active-file {
+    background-color: #316ac5;
+    color: white;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 3px;
+  }

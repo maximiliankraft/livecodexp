@@ -74,30 +74,54 @@ export class DirectoryRenderer {
         this.contentList = document.getElementById(contentContainerId);
         this.fileContentContainer = document.querySelector(fileContentContainerId);
         this.currentlyViewedFile = null; // Track the currently displayed file
+        this.filePathInTree = null; // Track the path of the file in the tree structure
     }
 
-    renderDirectoryContent(content) {
+    renderDirectoryContent(content, preserveSelection = false) {
+        // Save the currently expanded state of folders if preserving selection
+        const expandedFolders = new Set();
+        if (preserveSelection) {
+            document.querySelectorAll('#contents details[open]').forEach(detail => {
+                const folderName = detail.querySelector('summary').textContent;
+                expandedFolders.add(folderName);
+            });
+        }
+
         this.contentList.innerHTML = ""; // Clear previous content
 
-        const createTreeView = (content) => {
+        const createTreeView = (content, path = []) => {
             const ul = document.createElement("ul");
             ul.className = "tree-view";
 
             for (const [name, value] of Object.entries(content)) {
                 const li = document.createElement("li");
+                const currentPath = [...path, name];
 
                 if (value.kind === "file") {
                     li.textContent = name;
                     li.className = "file";
+                    li.dataset.path = currentPath.join('/');
                     li.data = value.data; // Attach file content to the list item
-                    li.onclick = (e) => this.onFileClick(e, name);
+                    
+                    // Check if this is the currently viewed file
+                    const isCurrentFile = this.currentlyViewedFile === name && path.length === 0;
+                    if (isCurrentFile) {
+                        li.classList.add('active-file');
+                    }
+                    
+                    li.onclick = (e) => this.onFileClick(e, name, currentPath);
                 } else if (value.kind === "directory") {
                     const details = document.createElement("details");
                     const summary = document.createElement("summary");
                     summary.textContent = name;
+                    
+                    // If we're preserving selection, restore expanded state
+                    if (preserveSelection && expandedFolders.has(name)) {
+                        details.open = true;
+                    }
 
                     details.appendChild(summary);
-                    details.appendChild(createTreeView(value.children));
+                    details.appendChild(createTreeView(value.children, currentPath));
                     li.appendChild(details);
                 }
 
@@ -110,17 +134,70 @@ export class DirectoryRenderer {
         const treeView = createTreeView(content);
         this.contentList.appendChild(treeView);
 
-        // Update the currently viewed file content if it has changed
-        if (this.currentlyViewedFile && content[this.currentlyViewedFile]) {
-            const updatedFile = content[this.currentlyViewedFile];
-            if (updatedFile.kind === "file") {
-                this.fileContentContainer.textContent = updatedFile.data;
-            }
+        // After rendering the tree, if we have a currently viewed file, update its content
+        if (this.currentlyViewedFile) {
+            this.updateCurrentFileContent(content, this.currentlyViewedFile);
         }
     }
 
-    async onFileClick(e, fileName) {
+    // Find and update a file in the content hierarchy based on its path
+    findFileInContent(content, filePath) {
+        if (!filePath || filePath.length === 0) {
+            return null;
+        }
+
+        if (filePath.length === 1) {
+            // Direct child of the current level
+            const fileName = filePath[0];
+            return content[fileName];
+        }
+
+        // Navigate through the directory structure
+        const dirName = filePath[0];
+        const dir = content[dirName];
+        
+        if (dir && dir.kind === "directory" && dir.children) {
+            return this.findFileInContent(dir.children, filePath.slice(1));
+        }
+        
+        return null;
+    }
+
+    // Update the content of the currently viewed file
+    updateCurrentFileContent(content, fileName) {
+        let fileContent = null;
+        
+        // If we have a path in the tree structure
+        if (this.filePathInTree && this.filePathInTree.length > 0) {
+            const fileObj = this.findFileInContent(content, this.filePathInTree);
+            if (fileObj && fileObj.kind === "file" && fileObj.data) {
+                fileContent = fileObj.data;
+            }
+        } 
+        // Fallback to root level files
+        else if (content[fileName] && content[fileName].kind === "file") {
+            fileContent = content[fileName].data;
+        }
+
+        // Update the file content if we found it
+        if (fileContent) {
+            this.fileContentContainer.textContent = fileContent;
+            this.fileContentContainer.innerHTML = hljs.highlightAuto(fileContent).value;
+        }
+    }
+
+    async onFileClick(e, fileName, filePath) {
         this.currentlyViewedFile = fileName; // Store the name of the currently viewed file
+        this.filePathInTree = filePath; // Store the path to the file
+        
+        // Remove any existing active file highlight
+        document.querySelectorAll('.active-file').forEach(el => {
+            el.classList.remove('active-file');
+        });
+        
+        // Add active class to the clicked file
+        e.target.classList.add('active-file');
+        
         const text = e.target.data;
 
         // Set the file content and apply syntax highlighting
@@ -231,10 +308,6 @@ class FileSystemObserverManager {
                         ["modified", "deleted", "created", "disappeared"].includes(record.type) ? "was " : ""
                     } ${record.type}`
                 );
-
-            
-
-
         }
 
         if (updates.length > 0) {
@@ -269,11 +342,13 @@ class FileSystemObserverManager {
         // Handle updates: render or send to API
         
         if (updates.length === 0) {
-            renderer.renderDirectoryContent(content); // Initial load
-            synchronizer.publishInitial(content); // Send updates to API
+            // Initial load - send full content
+            renderer.renderDirectoryContent(content);
+            synchronizer.publishUpdate(content, true); // Send as initial content
         } else {
-            synchronizer.publishUpdate(updates); // Send updates to API
-            renderer.renderDirectoryContent(content); // Update UI (can be optimized further)
+            // Regular update with changes
+            synchronizer.publishUpdate(content, false); // Send full updated content
+            renderer.renderDirectoryContent(content, true); // Preserve currently selected file
         }
     });
 
