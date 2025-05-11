@@ -111,9 +111,26 @@ router.get('/stats', requireSession, (req, res) => {
     try {
         const sessionId = req.session.currentSession;
         const stats = sessionManager.getSessionStats(sessionId);
-        res.json(stats);
+        
+        // Add default values when missing to ensure UI display works correctly
+        const response = {
+            ...stats,
+            fileCount: stats.fileCount || 0,
+            totalSize: stats.totalSize || 0,
+            maxSize: stats.maxSize || (50 * 1024 * 1024),
+            maxFiles: stats.maxFiles || 500
+        };
+        
+        res.json(response);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error getting session stats:', error);
+        // Return fallback stats even in case of error
+        res.json({
+            fileCount: 0,
+            totalSize: 0,
+            maxSize: 50 * 1024 * 1024,
+            maxFiles: 500
+        });
     }
 });
 

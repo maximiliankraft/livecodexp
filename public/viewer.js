@@ -189,7 +189,4 @@ class SSEClient {
     // Initialize SSE client to listen for updates
     const sseClient = new SSEClient("/events", renderer, logger);
 
-    document.querySelector("#selectDirButton").onclick = async () => {
-        alert("Directory selection is now handled by the server. Updates will appear automatically.");
-    };
 })();

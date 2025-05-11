@@ -8,6 +8,11 @@ services:
     volumes:
       - ./src:/app/src
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
+      - MAX_SESSIONS=5
+      - MAX_FILES_PER_SESSION=500
+      - MAX_FILE_SIZE_MB=5
+      - MAX_SESSION_SIZE_MB=50
+      - SESSION_SECRET=liveCodeExpSecretKey_change_in_production!
     restart: unless-stopped

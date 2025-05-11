@@ -50,3 +50,35 @@ body {
   pre code{
     font-family: monospace !important;
   }
+
+  .session-info {
+    padding: 5px 10px;}
+  .leave-session {
+    margin-left: 10px;
+    cursor: pointer;
+  }
+  .status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #c0c0c0;
+    border-top: 1px solid #dfdfdf;
+    padding: 5px 10px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .progress-bar {
+    width: 100px;
+    height: 10px;
+    border: 1px solid #000;
+    margin-left: 5px;
+    display: inline-block;
+    background-color: #fff;
+  }
+  .progress-fill {
+    height: 100%;
+    background-color: green;
+    width: 0%;
+  }

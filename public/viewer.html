@@ -23,41 +23,11 @@
     <title>File Watcher for Live Code 🧑‍💻</title>
     <link rel="stylesheet" href="/style.css" />
     <style>
-      .session-info {
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background-color: #c0c0c0;
-        border: 1px solid #000;
-        padding: 5px 10px;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        z-index: 100;
-      }
-      .leave-session {
-        margin-left: 10px;
-        cursor: pointer;
-      }
-      .status-bar {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: #c0c0c0;
-        border-top: 1px solid #dfdfdf;
-        padding: 5px 10px;
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-      }
+      
     </style>
   </head>
   <body>
-    <div class="session-info" id="session-info">
-      <span>Loading session info...</span>
-      <button class="leave-session" id="leave-session">Leave Session</button>
-    </div>
+
 
     <div id="sidebar-left" class="window">
       <div class="title-bar">
@@ -109,6 +79,12 @@
       </div>
       <div>
         Viewing session: <span id="session-name">Loading...</span>
+      </div>
+      <div class="session-info" id="session-info">
+        <span>Loading session info...</span>
+      </div>
+      <div>
+        <button class="leave-session" id="leave-session">Leave Session</button>
       </div>
     </div>
 

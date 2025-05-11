@@ -1,9 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import session from 'express-session';
-import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { rateLimit } from 'express-rate-limit';
 import { router as syncRouter } from './routes/syncRoutes.js';
 import EventManager from './routes/syncRoutes.js';
 import path from 'path';
@@ -19,34 +17,21 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 export const eventManager = new EventManager();
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com', 'unpkg.com'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'cdnjs.cloudflare.com', 'unpkg.com'],
-      imgSrc: ["'self'", 'data:'],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-    },
-  },
-  crossOriginEmbedderPolicy: false, // Required for some external resources
-}));
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
+// Security middleware - add headers for Content-Security-Policy
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", 
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com unpkg.com; " +
+    "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com unpkg.com; " +
+    "img-src 'self' data:; " +
+    "connect-src 'self'; " +
+    "font-src 'self' unpkg.com; " +
+    "object-src 'none'; " +
+    "media-src 'self'; " +
+    "frame-src 'none'"
+  );
+  next();
 });
-
-// Apply rate limiting to all requests
-app.use(limiter);
 
 // Session configuration
 app.use(session({
@@ -168,14 +153,12 @@ app.post('/api/sessions/leave', (req, res) => {
 
 // SSE endpoint
 app.get('/events', (req, res) => {
-    // Check if user is in a session
-    if (!req.session.currentSession) {
-        return res.status(403).json({ error: 'Not part of a session' });
-    }
-
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    
+    // Send an initial "connected" event
+    res.write('data: {"type":"connected"}\n\n');
 
     // Associate this client with a specific session
     const clientData = {

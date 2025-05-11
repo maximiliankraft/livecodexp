@@ -429,7 +429,9 @@ class FileSystemObserverManager {
         }
     });
 
-    document.querySelector("#selectDirButton").onclick = async () => {
+    const selectDirButton = document.querySelector("#selectDirButton");
+    
+    if (selectDirButton) {selectDirButton.onclick = async () => {
         try {
             // Check if user is in a session and is the owner
             const response = await fetch('/api/sessions/current');
@@ -476,5 +478,5 @@ class FileSystemObserverManager {
                 statusElement.style.color = 'red';
             }
         }
-    };
+    };}
 })();
