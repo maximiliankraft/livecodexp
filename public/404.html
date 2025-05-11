@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <link rel="stylesheet" href="https://unpkg.com/xp.css">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #008080;
+            margin: 0;
+        }
+        .error-window {
+            width: 400px;
+        }
+        .window-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .error-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+        .button-row {
+            margin-top: 20px;
+            align-self: flex-end;
+        }
+    </style>
+</head>
+<body>
+    <div class="window error-window">
+        <div class="title-bar">
+            <div class="title-bar-text">Error</div>
+            <div class="title-bar-controls">
+                <button aria-label="Close"></button>
+            </div>
+        </div>
+        <div class="window-body">
+            <div class="error-icon">🔍</div>
+            <p>The page you are looking for could not be found.</p>
+            <p>Please check the URL or return to the home page.</p>
+            <div class="button-row">
+                <button onclick="window.location.href='/'">OK</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

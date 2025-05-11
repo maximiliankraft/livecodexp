@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/xp.css">
+    <link rel="stylesheet" href="/style.css">
+    <title>Live Code Experience</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            background-color: #008080;
+            color: #000000;
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .title h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .title p {
+            font-size: 16px;
+        }
+        .window {
+            width: 600px;
+            margin-bottom: 20px;
+        }
+        .tab-strip {
+            display: flex;
+            background-color: #c0c0c0;
+            padding: 5px 5px 0;
+        }
+        .tab {
+            padding: 5px 15px;
+            margin-right: 5px;
+            background-color: #dfdfdf;
+            border: 1px solid #000;
+            border-bottom: none;
+            cursor: pointer;
+        }
+        .tab.active {
+            background-color: #f0f0f0;
+            position: relative;
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #f0f0f0;
+        }
+        .tab-content {
+            padding: 15px;
+            background-color: #f0f0f0;
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-row {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .form-row label {
+            width: 100px;
+            margin-right: 10px;
+        }
+        .form-row input {
+            flex: 1;
+        }
+        .button-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+        .session-list {
+            border: 1px inset #fff;
+            background-color: white;
+            height: 150px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        .session-item {
+            padding: 5px;
+            border-bottom: 1px solid #dfdfdf;
+            cursor: pointer;
+        }
+        .session-item:hover {
+            background-color: #e0e0e0;
+        }
+        .session-item.selected {
+            background-color: #0a246a;
+            color: white;
+        }
+        .footer {
+            background-color: #c0c0c0;
+            padding: 10px;
+            text-align: center;
+            margin-top: 20px;
+            border-top: 1px solid #dfdfdf;
+            font-size: 12px;
+        }
+        .license-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border: 1px solid #000;
+            font-size: 12px;
+        }
+        .license-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .license-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .license-list li {
+            margin-bottom: 5px;
+        }
+        .status-bar {
+            background-color: #c0c0c0;
+            border-top: 1px solid #dfdfdf;
+            padding: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="title">
+            <h1>Live Code Experience</h1>
+            <p>Real-time code sharing and collaboration</p>
+        </div>
+
+        <div class="window">
+            <div class="title-bar">
+                <div class="title-bar-text">Session Management</div>
+                <div class="title-bar-controls">
+                    <button aria-label="Minimize"></button>
+                    <button aria-label="Maximize"></button>
+                    <button aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="tab-strip">
+                <div class="tab active" data-tab="create-session">Create Session</div>
+                <div class="tab" data-tab="join-session">Join Session</div>
+            </div>
+            <div class="window-body">
+                <!-- Create Session Tab -->
+                <div class="tab-content active" id="create-session">
+                    <form id="create-session-form">
+                        <div class="form-row">
+                            <label for="session-name">Session Name:</label>
+                            <input type="text" id="session-name" required>
+                        </div>
+                        <div class="form-row info-row">
+                            <small>
+                                Create a new session as a teacher/presenter.
+                                <br>Session limits: Max 500 files, 5MB per file, 50MB total.
+                            </small>
+                        </div>
+                        <div class="button-row">
+                            <button type="submit">Create Session</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Join Session Tab -->
+                <div class="tab-content" id="join-session">
+                    <div>
+                        <div class="form-row">
+                            <label>Available Sessions:</label>
+                        </div>
+                        <div class="session-list" id="session-list">
+                            <div class="session-item" data-id="loading">Loading sessions...</div>
+                        </div>
+                        <div class="form-row">
+                            <label for="session-id">Session ID:</label>
+                            <input type="text" id="session-id" required>
+                        </div>
+                        <div class="button-row">
+                            <button type="button" id="refresh-btn">Refresh</button>
+                            <button type="button" id="join-btn">Join Session</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="status-bar">
+                <div id="status-message">Ready</div>
+                <div>Active Sessions: <span id="active-sessions">0</span>/5</div>
+            </div>
+        </div>
+
+        <div class="license-section">
+            <div class="license-title">Libraries and Attributions</div>
+            <ul class="license-list">
+                <li><strong>Express</strong>: MIT License - Copyright (c) 2009-2022 TJ Holowaychuk, Hage Yaapa, Douglas Christopher Wilson</li>
+                <li><strong>xp.css</strong>: MIT License - Copyright (c) 2020 Adam Hammad</li>
+                <li><strong>Highlight.js</strong>: BSD 3-Clause License - Copyright (c) 2006, Ivan Sagalaev</li>
+                <li><strong>nanoid</strong>: MIT License - Copyright (c) 2017 Andrey Sitnik</li>
+                <li><strong>helmet</strong>: MIT License - Copyright (c) 2012-2023 Evan Hahn, Adam Baldwin</li>
+                <li><strong>uuid</strong>: MIT License - Copyright (c) 2010-2020 Robert Kieffer</li>
+                <li><strong>Contributors</strong>: Max (Project Creator), Claude (Developer)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching logic
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs and content
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                
+                // Show corresponding content
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Session management
+        let selectedSessionId = null;
+
+        // Create session form
+        document.getElementById('create-session-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const sessionName = document.getElementById('session-name').value.trim();
+            
+            if (!sessionName) {
+                updateStatus('Please enter a session name', 'error');
+                return;
+            }
+            
+            try {
+                updateStatus('Creating session...', 'info');
+                const response = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name: sessionName }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(`Session created! Redirecting...`, 'success');
+                    setTimeout(() => {
+                        window.location.href = '/observer.html';
+                    }, 1000);
+                } else {
+                    updateStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Join session
+        document.getElementById('join-btn').addEventListener('click', async () => {
+            const sessionId = document.getElementById('session-id').value.trim();
+            
+            if (!sessionId) {
+                updateStatus('Please enter a session ID or select a session from the list', 'error');
+                return;
+            }
+            
+            try {
+                updateStatus('Joining session...', 'info');
+                const response = await fetch('/api/sessions/join', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sessionId }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(`Joined session! Redirecting...`, 'success');
+                    setTimeout(() => {
+                        window.location.href = '/viewer.html';
+                    }, 1000);
+                } else {
+                    updateStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Session list management
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const sessions = await response.json();
+                
+                const sessionList = document.getElementById('session-list');
+                sessionList.innerHTML = '';
+                
+                if (sessions.length === 0) {
+                    sessionList.innerHTML = '<div class="session-item">No active sessions available</div>';
+                } else {
+                    sessions.forEach(session => {
+                        const sessionItem = document.createElement('div');
+                        sessionItem.className = 'session-item';
+                        sessionItem.dataset.id = session.id;
+                        sessionItem.textContent = `${session.name} (Files: ${session.fileCount})`;
+                        
+                        sessionItem.addEventListener('click', () => {
+                            // Remove selected class from all items
+                            document.querySelectorAll('.session-item').forEach(item => {
+                                item.classList.remove('selected');
+                            });
+                            
+                            // Add selected class to clicked item
+                            sessionItem.classList.add('selected');
+                            
+                            // Set the session ID input
+                            document.getElementById('session-id').value = session.id;
+                            selectedSessionId = session.id;
+                        });
+                        
+                        sessionList.appendChild(sessionItem);
+                    });
+                }
+                
+                // Update active sessions count
+                document.getElementById('active-sessions').textContent = sessions.length;
+                
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                updateStatus(`Error loading sessions: ${error.message}`, 'error');
+            }
+        }
+
+        // Refresh button
+        document.getElementById('refresh-btn').addEventListener('click', loadSessions);
+
+        // Status update helper
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            
+            // You could add color coding based on type
+            if (type === 'error') {
+                statusElement.style.color = 'red';
+            } else if (type === 'success') {
+                statusElement.style.color = 'green';
+            } else {
+                statusElement.style.color = 'black';
+            }
+        }
+
+        // Initial load
+        window.addEventListener('load', () => {
+            loadSessions();
+            
+            // Check for current session
+            fetch('/api/sessions/current')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.inSession) {
+                        const redirectUrl = data.isOwner ? '/observer.html' : '/viewer.html';
+                        updateStatus('You are already in a session. Redirecting...', 'info');
+                        setTimeout(() => {
+                            window.location.href = redirectUrl;
+                        }, 1500);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error checking current session:', err);
+                });
+        });
+    </script>
+</body>
+</html>

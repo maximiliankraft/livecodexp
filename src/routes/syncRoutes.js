@@ -1,4 +1,5 @@
 import express from 'express';
+import sessionManager from '../services/sessionManager.js';
 
 export const router = express.Router();
 import { eventManager } from '../server.js'; // Import the event manager instance
@@ -6,60 +7,117 @@ import { eventManager } from '../server.js'; // Import the event manager instanc
 export default class EventManager {
     constructor() {
         this.clients = [];
-        this.currentState = null; // Store the current state of the content
+        this.sessionStates = new Map(); // Store the current state for each session
     }
 
-    addClient(res) {
+    addClient(clientData) {
         console.debug("Adding new client to event stream");
-        this.clients.push(res);
+        this.clients.push(clientData);
 
         // Send the current state to the newly connected client
-        if (this.currentState) {
-            console.log("Sending current state to new client");
+        const sessionId = clientData.sessionId;
+        if (sessionId && this.sessionStates.has(sessionId)) {
+            console.log("Sending current session state to new client");
             
             // Format data correctly for SSE
-            res.write(`data: ${JSON.stringify(this.currentState)}\n\n`);
+            clientData.res.write(`data: ${JSON.stringify(this.sessionStates.get(sessionId))}\n\n`);
         } else {
             console.log("No current state to send to new client");
         }
     }
 
-    removeClient(res) {
+    removeClient(clientData) {
         console.debug("Removing client from event stream");
-        this.clients = this.clients.filter(client => client !== res);
+        this.clients = this.clients.filter(client => client.res !== clientData.res);
     }
 
-    sendUpdate(data) {
-        console.debug("Sending update to clients");
-        console.debug(data);
-        this.currentState = data; // Update the current state
+    sendUpdate(data, sessionId) {
+        console.debug(`Sending update to clients in session ${sessionId}`);
+        
+        // Store the state for this session
+        this.sessionStates.set(sessionId, data);
+        
+        // Send to clients in the specified session
         this.clients.forEach(client => {
-            client.write(`data: ${JSON.stringify(data)}\n\n`);
+            if (client.sessionId === sessionId) {
+                client.res.write(`data: ${JSON.stringify(data)}\n\n`);
+            }
         });
     }
 }
 
-router.post('/update', async (req, res) => {
-    const data = req.body;
-    console.log("Received update:", data);
+// Middleware to ensure user is in a session
+const requireSession = (req, res, next) => {
+    if (!req.session.currentSession) {
+        return res.status(403).json({ error: 'You must be in a session to perform this action' });
+    }
+    next();
+};
 
-    // Send the update to all connected clients
-    eventManager.sendUpdate({ type: 'update', content: data.content, isInitial: data.isInitial });
-    
-    res.status(200).send('Update published');
+// Middleware to ensure user is session owner
+const requireOwnership = (req, res, next) => {
+    if (!req.session.isOwner) {
+        return res.status(403).json({ error: 'Only the session owner can perform this action' });
+    }
+    next();
+};
+
+router.post('/update', requireSession, async (req, res) => {
+    try {
+        const sessionId = req.session.currentSession;
+        const data = req.body;
+        console.log(`Received update for session ${sessionId}:`, data);
+
+        // Add file size tracking for session limits
+        if (data.content && data.content.files) {
+            Object.values(data.content.files).forEach(file => {
+                // Skip directories
+                if (file.type === 'directory') return;
+                
+                // For content, estimate size based on content length
+                if (file.content) {
+                    const fileInfo = {
+                        path: file.path,
+                        size: Buffer.byteLength(file.content, 'utf8'),
+                        type: file.type
+                    };
+                    
+                    try {
+                        sessionManager.updateFileInSession(sessionId, fileInfo);
+                    } catch (error) {
+                        return res.status(400).json({ error: error.message });
+                    }
+                }
+            });
+        }
+
+        // Send the update to clients in the same session
+        eventManager.sendUpdate({ 
+            type: 'update', 
+            content: data.content, 
+            isInitial: data.isInitial,
+            sessionId: sessionId
+        }, sessionId);
+        
+        res.status(200).send('Update published');
+    } catch (error) {
+        console.error('Error updating session:', error);
+        res.status(500).json({ error: 'Failed to update session data' });
+    }
 });
 
+// Get session stats
+router.get('/stats', requireSession, (req, res) => {
+    try {
+        const sessionId = req.session.currentSession;
+        const stats = sessionManager.getSessionStats(sessionId);
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// This route is now handled in server.js
 router.get('/events', (req, res) => {
-    // Set headers for Server-Sent Events
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    // Add the client to the event stream
-    eventManager.addClient(res);
-
-    // Remove the client when the connection is closed
-    req.on('close', () => {
-        eventManager.removeClient(res);
-    });
+    res.status(404).send('This endpoint is deprecated. Use the root /events endpoint.');
 });
