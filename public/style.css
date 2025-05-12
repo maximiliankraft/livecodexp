@@ -8,9 +8,6 @@ body {
   background-size: cover;
   }
 
-  #sidebar-left {
-    overflow-y: auto;
-  }
 
   #main {
     flex-grow: 1;
