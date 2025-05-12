@@ -146,30 +146,102 @@ class SSEClient {
         return changes;
     }
 
+    // Apply incremental changes to the current content
+    applyChangesToContent(changes) {
+        // Create a deep copy of the current content to modify
+        const updatedContent = JSON.parse(JSON.stringify(this.currentContent));
+        
+        // Process each changed file
+        for (const [path, fileData] of Object.entries(changes)) {
+            const pathParts = path.split('/');
+            
+            // Handle root level files
+            if (pathParts.length === 1) {
+                const fileName = pathParts[0];
+                
+                if (fileData.kind === 'deleted') {
+                    // Remove file/directory from content
+                    if (updatedContent[fileName]) {
+                        delete updatedContent[fileName];
+                    }
+                } else {
+                    // Add/update file or directory
+                    updatedContent[fileName] = fileData;
+                }
+                continue;
+            }
+            
+            // Handle nested files - navigate through the path
+            let current = updatedContent;
+            let parentObj = null;
+            let lastKey = null;
+            
+            // Navigate through the path (except the last part)
+            for (let i = 0; i < pathParts.length - 1; i++) {
+                const part = pathParts[i];
+                
+                // If this part doesn't exist, create it
+                if (!current[part]) {
+                    current[part] = { 
+                        kind: 'directory', 
+                        children: {} 
+                    };
+                }
+                
+                parentObj = current;
+                lastKey = part;
+                
+                // Move to next level if it's a directory
+                if (current[part].kind === 'directory' && current[part].children) {
+                    current = current[part].children;
+                } else {
+                    // Path error - can't navigate further (not a directory)
+                    console.error(`Path error: ${part} in ${path} is not a directory`);
+                    break;
+                }
+            }
+            
+            // Process the last part of the path
+            const lastPart = pathParts[pathParts.length - 1];
+            
+            if (fileData.kind === 'deleted') {
+                // Remove file/directory
+                if (current[lastPart]) {
+                    delete current[lastPart];
+                }
+            } else {
+                // Add/update file or directory
+                current[lastPart] = fileData;
+            }
+        }
+        
+        return updatedContent;
+    }
+
     handleEvent(data) {
         if (data.type === "update") {
-            console.debug(data.isInitial ? "Received initial content via SSE" : "Received update via SSE");
-            
             // Capture currently viewed file name before updating content
             const currentlyViewedFile = this.renderer.currentlyViewedFile;
             
-            // Check if this is not the initial content and we can detect changes
-            if (!data.isInitial && this.previousContent) {
-                const changes = this.findChangedFiles(this.previousContent, data.content);
-                
-                // Log each detected change
-                changes.forEach(change => {
-                    this.logger.addLogMessage(`${change.path} was ${change.type}`);
-                });
-            } else if (data.isInitial) {
+            if (data.isInitial) {
+                // For initial content, replace everything
+                console.debug("Received initial content via SSE");
                 this.logger.addLogMessage("Initial content received");
+                this.currentContent = data.content;
+            } else if (data.changes) {
+                // For incremental updates, apply only the changes
+                console.debug(`Received incremental update with ${Object.keys(data.changes).length} changes`);
+                
+                // Log the changes
+                Object.entries(data.changes).forEach(([path, fileData]) => {
+                    const action = fileData.kind === 'deleted' ? 'deleted' : 
+                                  (fileData.type === 'created' ? 'created' : 'modified');
+                    this.logger.addLogMessage(`${path} was ${action}`);
+                });
+                
+                // Apply the changes to our content
+                this.currentContent = this.applyChangesToContent(data.changes);
             }
-            
-            // Store current content as previous for next comparison
-            this.previousContent = JSON.parse(JSON.stringify(this.currentContent));
-            
-            // Replace content with the new full content
-            this.currentContent = data.content;
             
             // Re-render with the updated content, preserving the currently viewed file
             this.renderer.renderDirectoryContent(this.currentContent, true);

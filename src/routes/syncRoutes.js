@@ -66,38 +66,76 @@ router.post('/update', requireSession, async (req, res) => {
     try {
         const sessionId = req.session.currentSession;
         const data = req.body;
-        console.log(`Received update for session ${sessionId}:`, data);
-
-        // Add file size tracking for session limits
-        if (data.content && data.content.files) {
-            Object.values(data.content.files).forEach(file => {
-                // Skip directories
-                if (file.type === 'directory') return;
-                
-                // For content, estimate size based on content length
-                if (file.content) {
-                    const fileInfo = {
-                        path: file.path,
-                        size: Buffer.byteLength(file.content, 'utf8'),
-                        type: file.type
-                    };
+        
+        if (data.isInitial) {
+            console.log(`Received initial content for session ${sessionId}`);
+            
+            // Add file size tracking for session limits (for initial content)
+            if (data.content && data.content.files) {
+                Object.values(data.content.files).forEach(file => {
+                    // Skip directories
+                    if (file.type === 'directory') return;
                     
-                    try {
-                        sessionManager.updateFileInSession(sessionId, fileInfo);
-                    } catch (error) {
-                        return res.status(400).json({ error: error.message });
+                    // For content, estimate size based on content length
+                    if (file.content) {
+                        const fileInfo = {
+                            path: file.path,
+                            size: Buffer.byteLength(file.content, 'utf8'),
+                            type: file.type
+                        };
+                        
+                        try {
+                            sessionManager.updateFileInSession(sessionId, fileInfo);
+                        } catch (error) {
+                            return res.status(400).json({ error: error.message });
+                        }
                     }
-                }
-            });
+                });
+            }
+            
+            // Send the full content to clients for initial load
+            eventManager.sendUpdate({ 
+                type: 'update', 
+                content: data.content, 
+                isInitial: true,
+                sessionId: sessionId
+            }, sessionId);
+        } else {
+            // This is an incremental update with only changed files
+            console.log(`Received incremental update for session ${sessionId} with ${Object.keys(data.changes || {}).length} changes`);
+            
+            // Add file size tracking for newly changed files
+            if (data.changes) {
+                Object.entries(data.changes).forEach(([path, fileData]) => {
+                    // Skip directories and deleted files
+                    if (fileData.kind === 'directory' || fileData.kind === 'deleted') return;
+                    
+                    // For files with content, update size tracking
+                    if (fileData.kind === 'file' && fileData.data) {
+                        const fileInfo = {
+                            path: path,
+                            size: Buffer.byteLength(fileData.data, 'utf8'),
+                            type: fileData.type || 'modified'
+                        };
+                        
+                        try {
+                            sessionManager.updateFileInSession(sessionId, fileInfo);
+                        } catch (error) {
+                            console.error(`Error updating file in session: ${error.message}`);
+                            // Continue processing other files instead of failing the whole update
+                        }
+                    }
+                });
+            }
+            
+            // Send only the changes to clients
+            eventManager.sendUpdate({ 
+                type: 'update', 
+                changes: data.changes, 
+                isInitial: false,
+                sessionId: sessionId
+            }, sessionId);
         }
-
-        // Send the update to clients in the same session
-        eventManager.sendUpdate({ 
-            type: 'update', 
-            content: data.content, 
-            isInitial: data.isInitial,
-            sessionId: sessionId
-        }, sessionId);
         
         res.status(200).send('Update published');
     } catch (error) {

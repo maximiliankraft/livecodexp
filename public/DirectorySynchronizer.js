@@ -7,15 +7,28 @@ export class DirectorySynchronizer {
         this.errorCallback = callback;
     }
 
-    async publishUpdate(content, isInitial = false) {
+    async publishUpdate(content, isInitial = false, changedFiles = null) {
         console.debug(isInitial ? "Publishing initial content to server" : "Publishing update to server");
         try {
+            let payload;
+            
+            if (isInitial) {
+                // For initial sync, send the full content
+                payload = { content, isInitial: true };
+            } else if (changedFiles && Object.keys(changedFiles).length > 0) {
+                // For updates, only send the changed files
+                payload = { changes: changedFiles, isInitial: false };
+            } else {
+                console.debug("No changes to publish");
+                return true;
+            }
+            
             const response = await fetch("/sync/update", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ content, isInitial })
+                body: JSON.stringify(payload)
             });
             
             if (!response.ok) {

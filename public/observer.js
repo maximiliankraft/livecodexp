@@ -214,106 +214,72 @@ class FileSystemObserverManager {
     }
 
     async callback(records, observer, rootHandle) {
-        const updates = [];
+        if (records.length === 0) return;
+            
+        // Object to store just the changed files
+        const changedFiles = {};
+        
         for (const record of records) {
-
             const filePathStr = record.relativePathComponents.join("/");
 
             if (
                 filePathStr.endsWith(".crswap") || 
                 filePathStr.endsWith("~") || 
-                    await isIgnoredByGitignore(this.dataManager.gitignoreFile, this.dataManager.gitignoreDir, filePathStr)
-                ) {
+                await isIgnoredByGitignore(this.dataManager.gitignoreFile, this.dataManager.gitignoreDir, filePathStr)
+            ) {
                 continue;
             }
-            console.log(record);
             
-                // Format the update in the required structure
-                const filePathArr = record.relativePathComponents;
-                if (filePathArr.length > 0) {
-                    // Get the filename from the last part of the path
-                    const filename = filePathArr[filePathArr.length - 1];
-                    // Get the full path excluding the filename
-                    const subfolderPath = filePathArr.slice(0, -1);
-                    
-                    // Handle different folder depth cases
-                    let updateObj = {};
-                    
-                    if (subfolderPath.length === 0) {
-                        // File is in the root directory
-                        // For files that are not deleted, we need to get content
-                        if (record.type !== "deleted" && record.target && record.target.kind === "file") {
-                            // Try to get file content for the update
-                            try {
-                                // Async won't work in this context, so we just set type and get content later if needed
-                                updateObj[filename] = { 
-                                    kind: "file", 
-                                    type: record.type
-                                };
-                            } catch (e) {
-                                console.error("Error getting file content:", e);
-                                updateObj[filename] = { 
-                                    kind: "file", 
-                                    type: record.type
-                                };
-                            }
-                        } else {
-                            updateObj[filename] = { 
-                                kind: "file", 
-                                type: record.type
-                            };
-                        }
-                    } else {
-                        // File is in a subfolder - build nested structure
-                        let currentLevel = updateObj;
-                        subfolderPath.forEach((folder, index) => {
-                            if (index === subfolderPath.length - 1) {
-                                // Last folder level - add the file here
-                                let fileData = { 
-                                    kind: "file", 
-                                    type: record.type
-                                };
-                                
-                                // For files that are not deleted, try to get content
-                                if (record.type !== "deleted" && record.target && record.target.kind === "file") {
-                                    // Async won't work here, just set type
-                                    fileData = { 
-                                        kind: "file", 
-                                        type: record.type
-                                    };
-                                }
-                                
-                                currentLevel[folder] = {
-                                    kind: "directory",
-                                    children: {
-                                        [filename]: fileData
-                                    }
-                                };
-                            } else {
-                                // Intermediate folder level
-                                currentLevel[folder] = {
-                                    kind: "directory",
-                                    children: {}
-                                };
-                                currentLevel = currentLevel[folder].children;
-                            }
-                        });
+            // Log the change
+            this.logger.addLogMessage(
+                ` ${filePathStr} ${
+                    ["modified", "deleted", "created", "disappeared"].includes(record.type) ? "was " : ""
+                } ${record.type}`
+            );
+            
+            // Extract specific file content
+            if (record.type === "deleted") {
+                // For deleted files, just mark them as deleted
+                changedFiles[filePathStr] = { 
+                    kind: "deleted", 
+                    wasKind: "file" // Assume file, but could be directory
+                };
+            } else if (record.target && (record.type === "created" || record.type === "modified")) {
+                // For new or modified files, get their content
+                if (record.target.kind === "file") {
+                    try {
+                        const file = await record.target.getFile();
+                        const fileContent = await file.text();
+                        changedFiles[filePathStr] = {
+                            kind: "file",
+                            data: fileContent,
+                            type: record.type
+                        };
+                    } catch (e) {
+                        console.error(`Error getting content for ${filePathStr}:`, e);
+                        // Still include the file in changes, just without content
+                        changedFiles[filePathStr] = {
+                            kind: "file",
+                            type: record.type,
+                            error: "Failed to read content"
+                        };
                     }
-                    
-                    updates.push(updateObj);
+                } else if (record.target.kind === "directory") {
+                    // For directories, mark as directory but don't include children
+                    // We'll need to separately handle directory structure if this matters
+                    changedFiles[filePathStr] = {
+                        kind: "directory",
+                        type: record.type
+                    };
                 }
-                
-                this.logger.addLogMessage(
-                    ` ${record.relativePathComponents.join("/")} ${
-                        ["modified", "deleted", "created", "disappeared"].includes(record.type) ? "was " : ""
-                    } ${record.type}`
-                );
+            }
         }
-
-        if (updates.length > 0) {
-            const updatedContent = await this.dataManager.getDirectoryContent(rootHandle);
-            this.onUpdate(updates, updatedContent); // Notify about updates
-        }
+        
+        // Get the full current content for the UI rendering
+        const updatedContent = await this.dataManager.getDirectoryContent(rootHandle);
+        
+        // Pass both the full content (for UI) and changed files (for sync) to callback
+        this.onUpdate(changedFiles, updatedContent);
     }
 
     async startObservation(rootHandle) {
@@ -357,10 +323,11 @@ class FileSystemObserverManager {
         logger.addLogMessage(`Error: ${errorMessage}`);
     });
 
-    const observerManager = new FileSystemObserverManager(logger, dataManager, async (updates, content) => {
+    const observerManager = new FileSystemObserverManager(logger, dataManager, async (changedFiles, content) => {
         // Handle updates: render or send to API
+        const isInitialLoad = Object.keys(changedFiles).length === 0;
         
-        if (updates.length === 0) {
+        if (isInitialLoad) {
             // Initial load - send full content
             renderer.renderDirectoryContent(content);
             
@@ -396,7 +363,7 @@ class FileSystemObserverManager {
                 logger.addLogMessage(`Session error: ${error.message}`);
             }
         } else {
-            // Regular update with changes
+            // Regular update with changes - only send the changed files
             renderer.renderDirectoryContent(content, true); // Preserve currently selected file
             
             // Update status
@@ -405,11 +372,14 @@ class FileSystemObserverManager {
                 statusElement.textContent = "Publishing update...";
             }
             
-            // Publish update
-            const success = await synchronizer.publishUpdate(content, false);
+            const changedFilesCount = Object.keys(changedFiles).length;
+            logger.addLogMessage(`Publishing update with ${changedFilesCount} changed file(s)`);
+            
+            // Publish only the changed files
+            const success = await synchronizer.publishUpdate(content, false, changedFiles);
             
             if (success && statusElement) {
-                statusElement.textContent = "Update published";
+                statusElement.textContent = `Update published (${changedFilesCount} file(s))`;
                 statusElement.style.color = 'green';
                 
                 setTimeout(() => {
@@ -420,7 +390,7 @@ class FileSystemObserverManager {
         }
         
         // Update session stats after publishing
-        if (updates.length > 0) {
+        if (!isInitialLoad) {
             try {
                 await fetch('/sync/stats');
             } catch (error) {
