@@ -53,6 +53,10 @@
         </div>
       </div>
       <div class="window-body">
+        <!-- when loading is finished set class to loadingHide -->
+        <div id="loading" class="loading" >
+          Loading file content...
+        </div>
         <pre>
           <code id="fileContent"></code>
         </pre>
@@ -93,8 +97,17 @@
       document.addEventListener('DOMContentLoaded', async () => {
         // Check if user is in a session
         try {
+
+          // show loading message
+          const loading = document.getElementById('loading');
+          
           const response = await fetch('/api/sessions/current');
           const data = await response.json();
+
+          // Hide loading message
+          loading.classList.add('loadingHide');
+
+
           
           if (!data.inSession) {
             // Redirect to landing page if not in a session
