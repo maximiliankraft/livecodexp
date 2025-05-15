@@ -59,9 +59,10 @@ export class SessionManager {
 
     session.clients = session.clients.filter(id => id !== clientId);
     
-    // If owner leaves, session becomes available to claim
+    // If owner leaves, session gets deleted
     if (session.owner === clientId) {
       session.owner = null;
+      this.sessions.delete(sessionId);
     }
     
     // If no clients left, remove the session
