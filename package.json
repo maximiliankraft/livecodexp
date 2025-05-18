@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "loadenv": "export $(grep -v '^#' .env | xargs)",
-    "start": "npm run loadenv && node src/server.js"
+    "start": "npm run loadenv && node src/server.js",
+    "cypress": "cypress open",
+    "cy": "cypress"
   },
   "dependencies": {
     "applicationinsights": "^3.7.0",
@@ -22,5 +24,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "cypress": "^14.3.3"
+  }
 }
